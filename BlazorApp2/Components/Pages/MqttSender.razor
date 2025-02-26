@@ -1,0 +1,78 @@
+﻿@page "/MqttSender"
+@using BlazorApp2.Service
+@inject MqttService MqttService
+
+<div>
+    <h2>MQTT Sender</h2>
+
+    <EditForm Model="@this" OnValidSubmit="SendMessage" FormName="MqttSendForm">
+        <div>
+            <label>Топик:</label>
+            <InputText @bind-Value="topic" />
+        </div>
+        <div>
+            <label>Сообщение:</label>
+            <InputText @bind-Value="message" />
+        </div>
+        <button type="submit" disabled="@isSending">
+            @(isSending ? "Отправка..." : "Отправить")
+        </button>
+    </EditForm>
+
+    @if (!string.IsNullOrEmpty(status))
+    {
+        <div style="margin-top: 10px; padding: 10px; border-radius: 5px; background-color: @(statusColor == "green" ? "#d4edda" : "#f8d7da"); color: @(statusColor == "green" ? "#155724" : "#721c24");">
+            @status
+        </div>
+    }
+</div>
+
+@code {
+    private string topic { get; set; } = "test/topic";
+    private string message { get; set; } = "Hello MQTT";
+    private string status { get; set; } = "";
+    private string statusColor { get; set; } = "black";
+    private bool isSending { get; set; } = false;
+
+    private async Task SendMessage()
+    {
+        if (isSending) return; // Предотвращаем многократные отправки
+        isSending = true;
+
+        // Проверяем подключение перед отправкой сообщения
+        if (!MqttService.IsConnected())
+        {
+            status = "❌ MQTT клиент не подключен!";
+            statusColor = "red";
+            isSending = false;
+            return;
+        }
+
+        try
+        {
+            bool success = await MqttService.PublishMessage(topic, message);
+
+            if (success)
+            {
+                status = $"✅ Отправлено в {topic}: {message}";
+                statusColor = "green";
+            }
+            else
+            {
+                status = "❌ Ошибка отправки сообщения!";
+                statusColor = "red";
+            }
+        }
+        catch (Exception ex)
+        {
+            status = $"❌ Ошибка: {ex.Message}";
+            statusColor = "red";
+        }
+        finally
+        {
+            isSending = false; // Разблокируем кнопку после завершения отправки
+        }
+    }
+}
+
+

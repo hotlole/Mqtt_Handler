@@ -1,0 +1,70 @@
+﻿@page "/mqtt-monitor"
+@using BlazorApp2.Service
+@inject MqttService Mqtt
+@implements IDisposable
+
+<div class="min-h-screen bg-gradient-to-r from-blue-500 to-purple-600 p-6">
+    <h1 class="text-5xl font-bold mb-8 text-white drop-shadow-lg text-center animate-pulse">MQTT Monitor</h1>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+        <div class="bg-white/90 backdrop-blur-sm p-6 rounded-2xl shadow-2xl hover:shadow-3xl transition-shadow duration-300">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">ESP32 Devices</h2>
+            <ul class="space-y-2">
+                @foreach (var device in Mqtt.Devices)
+                {
+                    <li class="flex justify-between p-4 text-xl rounded-lg shadow-md cursor-pointer transition-all hover:scale-105"
+                        @onclick="() => SelectDevice(device)"
+                        style="background-color: @(selectedDevice == device ? "#BFDBFE" : "#F3F4F6");">
+                        <span class="font-medium">@device.Name</span>
+                        <span class="flex items-center text-2xl">
+                            @(device.Status == "online" ? "🟢 Online" : "🔴 Offline")
+                        </span>
+                    </li>
+                }
+            </ul>
+        </div>
+
+        <div class="bg-white/90 backdrop-blur-sm p-6 rounded-2xl shadow-2xl hover:shadow-3xl transition-shadow duration-300 text-center">
+            <h2 class="text-3xl font-semibold mb-4 text-gray-700">Expression</h2>
+            <p class="text-6xl font-mono font-bold text-gray-900 bg-gray-200/50 p-6 rounded-lg shadow-md">
+                <span>@Mqtt.Expression.Num1</span>
+                <span class="text-blue-500">@Mqtt.Expression.Operator</span>
+                <span>@Mqtt.Expression.Num2</span>
+                <span>=</span>
+                <span class="text-green-600">@Mqtt.Expression.Result</span>
+            </p>
+        </div>
+    </div>
+
+    @if (selectedDevice is not null)
+    {
+        <div class="bg-white/90 backdrop-blur-sm p-6 rounded-2xl shadow-2xl hover:shadow-3xl transition-shadow duration-300 text-center mt-6">
+            <h2 class="text-3xl font-semibold mb-4 text-gray-700">Selected Device</h2>
+            <p class="text-2xl font-medium text-gray-800">Name: @selectedDevice.Name</p>
+            <p class="text-xl font-semibold @(selectedDevice.Status == "online" ? "text-green-600" : "text-red-600")">
+                Status: @(selectedDevice.Status == "online" ? "🟢 Online" : "🔴 Offline")
+            </p>
+        </div>
+    }
+</div>
+
+@code {
+    private Device? selectedDevice;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Mqtt.InitializeMqttClient();
+        Mqtt.OnMessageReceived += StateHasChanged; // Обновляем UI при получении сообщения
+    }
+
+    private void SelectDevice(Device device)
+    {
+        selectedDevice = device;
+    }
+
+    public void Dispose()
+    {
+        Mqtt.OnMessageReceived -= StateHasChanged;
+        Mqtt.Dispose();
+    }
+}
