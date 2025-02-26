@@ -4,9 +4,7 @@ using BlazorApp2.Service;
 var builder = WebApplication.CreateBuilder(args);
 
 // Убедитесь, что логирование настроено правильно
-builder.Logging.ClearProviders();  // Убираем все поставщики
-builder.Logging.AddConsole();  // Добавляем консольный логер
-
+builder.Logging.AddConsole();  // Добавляем консольный логерё
 // Добавляем необходимые сервисы
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();

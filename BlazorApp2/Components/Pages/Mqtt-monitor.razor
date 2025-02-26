@@ -50,11 +50,20 @@
 
 @code {
     private Device? selectedDevice;
+    private bool _isDisposed = false; // Флаг для отслеживания состояния компонента
 
     protected override async Task OnInitializedAsync()
     {
         await Mqtt.InitializeMqttClient();
-        Mqtt.OnMessageReceived += StateHasChanged; // Обновляем UI при получении сообщения
+        Mqtt.OnMessageReceived += OnMqttMessageReceived; // Подписываемся на событие
+    }
+
+    private void OnMqttMessageReceived()
+    {
+        if (!_isDisposed) // Проверяем, что компонент не удалён
+        {
+            InvokeAsync(StateHasChanged); // Обновляем UI в потоке Blazor
+        }
     }
 
     private void SelectDevice(Device device)
@@ -64,7 +73,8 @@
 
     public void Dispose()
     {
-        Mqtt.OnMessageReceived -= StateHasChanged;
+        _isDisposed = true; // Устанавливаем флаг, что компонент удалён
+        Mqtt.OnMessageReceived -= OnMqttMessageReceived; // Отписываемся от события
         Mqtt.Dispose();
     }
 }

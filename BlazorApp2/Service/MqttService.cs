@@ -1,5 +1,6 @@
 ﻿using MQTTnet;
 using MQTTnet.Protocol;
+using Microsoft.Extensions.Logging;
 using System.Buffers;
 using System.Text;
 using System.Text.Json;
@@ -22,8 +23,10 @@ namespace BlazorApp2.Service
 
     public class MqttService : IDisposable
     {
+        private readonly ILogger<MqttService> _logger;
         private IMqttClient _mqttClient;
         private bool _isConnected = false;
+        private bool _isDisposed = false; // Флаг для отслеживания состояния
 
         public string Status { get; private set; } = "Отключено";
 
@@ -37,6 +40,12 @@ namespace BlazorApp2.Service
         };
 
         public Expression Expression { get; private set; } = new();
+
+        public MqttService(ILogger<MqttService> logger)
+        {
+            _logger = logger;
+            _logger.LogInformation("MqttService создан");
+        }
 
         public async Task InitializeMqttClient()
         {
@@ -53,7 +62,7 @@ namespace BlazorApp2.Service
             {
                 _isConnected = true;
                 Status = "Подключено";
-                Console.WriteLine("MQTT клиент подключен");  // Логирование
+                _logger.LogInformation("MQTT клиент подключен");
                 await SubscribeToTopics();
             };
 
@@ -61,21 +70,31 @@ namespace BlazorApp2.Service
             {
                 _isConnected = false;
                 Status = "Отключено";
-                Console.WriteLine("MQTT клиент отключен");  // Логирование
+                _logger.LogWarning("MQTT клиент отключен");
 
                 for (int i = 0; i < 5; i++) // 5 попыток переподключения
                 {
                     try
                     {
                         await Task.Delay(TimeSpan.FromSeconds(5)); // Подождать перед повторной попыткой
-                        Console.WriteLine($"Попытка переподключения {i + 1}...");
+                        _logger.LogInformation($"Попытка переподключения {i + 1}...");
+
+                        // Если клиент был освобожден, создаем новый
+                        if (_mqttClient == null || _isDisposed)
+                        {
+                            _logger.LogInformation("Создание нового MQTT клиента...");
+                            _mqttClient = new MqttClientFactory().CreateMqttClient();
+                            await InitializeMqttClient(); // Повторная инициализация
+                            _isDisposed = false; // Сбрасываем флаг
+                        }
+
                         await _mqttClient.ConnectAsync(options);
                         return;
                     }
                     catch (Exception ex)
                     {
                         Status = $"Попытка {i + 1} не удалась: {ex.Message}";
-                        Console.WriteLine($"Ошибка переподключения: {ex.Message}"); // Логирование
+                        _logger.LogError($"Ошибка переподключения: {ex.Message}");
                     }
                 }
             };
@@ -90,24 +109,23 @@ namespace BlazorApp2.Service
 
             try
             {
-                Console.WriteLine("Подключение к MQTT серверу...");
+                _logger.LogInformation("Подключение к MQTT серверу...");
                 await _mqttClient.ConnectAsync(options);
-                Console.WriteLine("Попытка подключения завершена");
+                _logger.LogInformation("Попытка подключения завершена");
             }
             catch (Exception ex)
             {
                 Status = $"Ошибка соединения: {ex.Message}";
-                Console.WriteLine($"Ошибка подключения: {ex.Message}");  // Логирование
+                _logger.LogError($"Ошибка подключения: {ex.Message}");
             }
         }
-
 
         public async Task<bool> PublishMessage(string topic, string payload)
         {
             if (_mqttClient == null || !_mqttClient.IsConnected)
             {
                 Status = "MQTT клиент не подключен!";
-                Console.WriteLine("MQTT клиент не подключен!");  // Отладка
+                _logger.LogError("MQTT клиент не подключен!");
                 return false;
             }
 
@@ -120,13 +138,13 @@ namespace BlazorApp2.Service
                     .Build();
 
                 await _mqttClient.PublishAsync(message);
-                Console.WriteLine($"Сообщение отправлено в {topic}: {payload}");  // Отладка
+                _logger.LogInformation($"Сообщение отправлено в {topic}: {payload}");
                 return true;
             }
             catch (Exception ex)
             {
                 Status = $"Ошибка отправки сообщения: {ex.Message}";
-                Console.WriteLine($"Ошибка отправки: {ex.Message}");  // Отладка
+                _logger.LogError($"Ошибка отправки: {ex.Message}");
                 return false;
             }
         }
@@ -134,13 +152,13 @@ namespace BlazorApp2.Service
         private async Task SubscribeToTopics()
         {
             var subscribeOptions = new MqttClientSubscribeOptionsBuilder()
-    .WithTopicFilter(f => f.WithTopic("devices/status").WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce))
-    .WithTopicFilter(f => f.WithTopic("expression/data").WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce))
-    .Build();
-
+                .WithTopicFilter(f => f.WithTopic("devices/status").WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce))
+                .WithTopicFilter(f => f.WithTopic("expression/data").WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce))
+                .Build();
 
             await _mqttClient.SubscribeAsync(subscribeOptions);
         }
+
         public bool IsConnected() => _mqttClient != null && _mqttClient.IsConnected;
 
         private void ProcessMqttMessage(string topic, byte[] payload)
@@ -155,11 +173,13 @@ namespace BlazorApp2.Service
                     if (deviceStatusList != null)
                     {
                         Devices = deviceStatusList;
+                        _logger.LogInformation("Обновлен список устройств");
                     }
                 }
                 catch (Exception ex)
                 {
                     Status = $"Ошибка обработки данных устройств: {ex.Message}";
+                    _logger.LogError($"Ошибка обработки данных устройств: {ex.Message}");
                 }
             }
             else if (topic == "expression/data")
@@ -170,19 +190,25 @@ namespace BlazorApp2.Service
                     if (expression != null)
                     {
                         Expression = expression;
+                        _logger.LogInformation("Обновлены данные выражения");
                     }
                 }
                 catch (Exception ex)
                 {
                     Status = $"Ошибка обработки выражения: {ex.Message}";
+                    _logger.LogError($"Ошибка обработки выражения: {ex.Message}");
                 }
             }
         }
 
         public void Dispose()
         {
-            _mqttClient?.DisconnectAsync().Wait();
-            _mqttClient?.Dispose();
+            if (!_isDisposed)
+            {
+                _mqttClient?.DisconnectAsync().Wait();
+                _mqttClient?.Dispose();
+                _isDisposed = true;
+            }
         }
     }
 }
