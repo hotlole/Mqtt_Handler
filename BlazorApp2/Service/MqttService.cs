@@ -88,8 +88,12 @@ namespace BlazorApp2.Service
                             _isDisposed = false; // Сбрасываем флаг
                         }
 
-                        await _mqttClient.ConnectAsync(options);
-                        return;
+                        // Проверяем, что клиент не подключён
+                        if (!_mqttClient.IsConnected)
+                        {
+                            await _mqttClient.ConnectAsync(options);
+                            return;
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -152,8 +156,8 @@ namespace BlazorApp2.Service
         private async Task SubscribeToTopics()
         {
             var subscribeOptions = new MqttClientSubscribeOptionsBuilder()
-                .WithTopicFilter(f => f.WithTopic("devices/status").WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce))
-                .WithTopicFilter(f => f.WithTopic("expression/data").WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce))
+                .WithTopicFilter(f => f.WithTopic("test/esp32/calculator/status/EC62609A4320").WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce))
+                .WithTopicFilter(f => f.WithTopic("test/esp32/calculator/EC62609A4320").WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce))
                 .Build();
 
             await _mqttClient.SubscribeAsync(subscribeOptions);
@@ -164,17 +168,24 @@ namespace BlazorApp2.Service
         private void ProcessMqttMessage(string topic, byte[] payload)
         {
             var message = Encoding.UTF8.GetString(payload);
+            _logger.LogInformation($"MQTT сообщение получено: {topic} - {message}");
 
-            if (topic == "devices/status")
+            if (topic == "test/esp32/calculator/EC62609A4320")
             {
                 try
                 {
-                    var deviceStatusList = JsonSerializer.Deserialize<List<Device>>(message);
-                    if (deviceStatusList != null)
-                    {
-                        Devices = deviceStatusList;
-                        _logger.LogInformation("Обновлен список устройств");
-                    }
+                    // Пример данных: "EC62609A4320 = Offline, EC62609AE018 = Offline"
+                    var deviceStatusList = message.Split(',')
+                        .Select(part => part.Split('='))
+                        .Select(parts => new Device
+                        {
+                            Name = parts[0].Trim(),
+                            Status = parts[1].Trim()
+                        })
+                        .ToList();
+
+                    Devices = deviceStatusList;
+                    _logger.LogInformation("Обновлен список устройств");
                 }
                 catch (Exception ex)
                 {
@@ -182,16 +193,27 @@ namespace BlazorApp2.Service
                     _logger.LogError($"Ошибка обработки данных устройств: {ex.Message}");
                 }
             }
-            else if (topic == "expression/data")
+            else if (topic == "test/esp32/calculator/EC62609A4320")
             {
                 try
                 {
-                    var expression = JsonSerializer.Deserialize<Expression>(message);
-                    if (expression != null)
+                    // Пример данных: "Path: /calculate, Data: POST request received: num1=10, num2=23, operation=add, result=33.00"
+                    var parts = message.Split(new[] { "num1=", "num2=", "operation=", "result=" }, StringSplitOptions.RemoveEmptyEntries);
+
+                    var num1 = int.Parse(parts[1].Split(',')[0]);
+                    var num2 = int.Parse(parts[2].Split(',')[0]);
+                    var operation = parts[3].Split(',')[0];
+                    var result = double.Parse(parts[4]);
+
+                    Expression = new Expression
                     {
-                        Expression = expression;
-                        _logger.LogInformation("Обновлены данные выражения");
-                    }
+                        Num1 = num1,
+                        Num2 = num2,
+                        Operator = operation,
+                        Result = (int)result
+                    };
+
+                    _logger.LogInformation("Обновлены данные выражения");
                 }
                 catch (Exception ex)
                 {
@@ -199,7 +221,10 @@ namespace BlazorApp2.Service
                     _logger.LogError($"Ошибка обработки выражения: {ex.Message}");
                 }
             }
+
+            OnMessageReceived?.Invoke();
         }
+
 
         public void Dispose()
         {

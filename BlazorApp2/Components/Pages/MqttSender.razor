@@ -2,47 +2,64 @@
 @using BlazorApp2.Service
 @inject MqttService MqttService
 
-<div>
-    <h2>MQTT Sender</h2>
+<div class="mqtt-sender-container">
+    <div class="mqtt-sender-card">
+        <h2 class="mqtt-sender-title">MQTT Sender</h2>
 
-    <EditForm Model="@this" OnValidSubmit="SendMessage" FormName="MqttSendForm">
-        <div>
-            <label>Топик:</label>
-            <InputText @bind-Value="topic" />
-        </div>
-        <div>
-            <label>Сообщение:</label>
-            <InputText @bind-Value="message" />
-        </div>
-        <button type="submit" disabled="@isSending">
-            @(isSending ? "Отправка..." : "Отправить")
-        </button>
-    </EditForm>
+        <EditForm Model="@this" OnValidSubmit="SendMessage" FormName="MqttSendForm">
+            <div class="form-group">
+                <label class="form-label">Топик:</label>
+                <InputText @bind-Value="topic" class="form-input" placeholder="Введите топик" />
+            </div>
 
-    @if (!string.IsNullOrEmpty(status))
-    {
-        <div style="margin-top: 10px; padding: 10px; border-radius: 5px; background-color: @(statusColor == "green" ? "#d4edda" : "#f8d7da"); color: @(statusColor == "green" ? "#155724" : "#721c24");">
-            @status
-        </div>
-    }
+            <div class="form-group">
+                <label class="form-label">Сообщение:</label>
+                <InputText @bind-Value="message" class="form-input" placeholder="Введите сообщение" />
+            </div>
+
+            <button type="submit" disabled="@isSending" class="submit-button">
+                @(isSending ? "Отправка..." : "Отправить")
+            </button>
+        </EditForm>
+
+        @if (!string.IsNullOrEmpty(status))
+        {
+            <div class="status-message" style="background-color: @(statusColor == "green" ? "#d4edda" : "#f8d7da"); color: @(statusColor == "green" ? "#155724" : "#721c24");">
+                @status
+            </div>
+        }
+    </div>
 </div>
 
+
 @code {
-    private string topic { get; set; } = "test/topic";
-    private string message { get; set; } = "Hello MQTT";
-    private string status { get; set; } = "";
-    private string statusColor { get; set; } = "black";
-    private bool isSending { get; set; } = false;
+    private string topic { get; set; } = "123"; // Топик будет вводиться пользователем
+    private string message { get; set; } = "test"; // Сообщение будет вводиться пользователем
+    private string status { get; set; } = ""; // Статус отправки
+    private string statusColor { get; set; } = "black"; // Цвет статуса
+    private bool isSending { get; set; } = false; // Флаг для блокировки кнопки
 
     private async Task SendMessage()
     {
         if (isSending) return; // Предотвращаем многократные отправки
         isSending = true;
 
+        // Отладочное сообщение
+        Console.WriteLine($"Топик: '{topic}', Сообщение: '{message}'");
+
         // Проверяем подключение перед отправкой сообщения
         if (!MqttService.IsConnected())
         {
             status = "❌ MQTT клиент не подключен!";
+            statusColor = "red";
+            isSending = false;
+            return;
+        }
+
+        // Проверяем, что топик и сообщение не пустые
+        if (string.IsNullOrWhiteSpace(topic) || string.IsNullOrWhiteSpace(message))
+        {
+            status = "❌ Топик и сообщение не могут быть пустыми!";
             statusColor = "red";
             isSending = false;
             return;
@@ -74,5 +91,3 @@
         }
     }
 }
-
-
