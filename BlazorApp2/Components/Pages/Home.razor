@@ -2,6 +2,184 @@
 
 <PageTitle>Home</PageTitle>
 
-<h1>Xtronik</h1>
+<style>
+    .home-container {
+        min-height: 100vh;
+        background: radial-gradient(circle at top left, #6C4CFF, #4C6FF2, #232323);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        color: white;
+        text-align: center;
+        overflow: hidden;
+        position: relative;
+        animation: fadeInZoom 1.5s ease-out;
+    }
 
-Mqtt monitor & publisher
+    .grid-overlay {
+        position: absolute;
+        inset: 0;
+        background-image: linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(to right, rgba(255,255,255,0.08) 1px, transparent 1px);
+        background-size: 50px 50px;
+        opacity: 0.4;
+        pointer-events: none;
+    }
+
+    .home-title {
+        font-size: 6rem;
+        text-transform: uppercase;
+        text-shadow: 0 0 30px rgba(255, 255, 255, 0.8);
+        animation: glowPulse 3s infinite alternate ease-in-out;
+    }
+
+    .home-subtitle {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+        opacity: 0.85;
+        text-shadow: 0 0 15px rgba(255, 255, 255, 0.7);
+    }
+
+    .system-info {
+        font-family: 'Consolas', monospace;
+        font-size: 1.2rem;
+        color: #B3BFFF;
+        text-shadow: 0 0 15px rgba(108, 76, 255, 0.8);
+        margin-bottom: 1rem;
+        cursor: pointer;
+        transition: text-shadow 0.3s ease;
+    }
+
+        .system-info:hover {
+            text-shadow: 0 0 25px rgba(108, 76, 255, 1);
+        }
+
+    .log-terminal {
+        width: 80%;
+        max-width: 800px;
+        height: 200px;
+        background: rgba(0, 0, 0, 0.5);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        padding: 1rem;
+        overflow: hidden;
+        font-family: 'Courier New', monospace;
+        font-size: 0.9rem;
+        color: #AAB4FF;
+        text-align: left;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 0 25px rgba(108, 76, 255, 0.5);
+        overflow-y: auto;
+        margin-bottom: 1rem;
+        border-radius: 8px;
+    }
+
+    .home-buttons {
+        display: flex;
+        gap: 2rem;
+    }
+
+    .home-button {
+        padding: 1rem 2.5rem;
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(255, 255, 255, 0.5);
+        backdrop-filter: blur(10px);
+        color: white;
+        text-transform: uppercase;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+
+        .home-button:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 0 25px rgba(255, 255, 255, 0.7);
+        }
+
+    @@keyframes fadeInZoom {
+        from {
+            opacity: 0;
+            transform: scale(0.9);
+        }
+
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    @@keyframes glowPulse {
+        from {
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.7);
+        }
+
+        to {
+            text-shadow: 0 0 40px rgba(108, 76, 255, 1);
+        }
+    }
+</style>
+
+<div class="home-container">
+    <div class="grid-overlay"></div>
+
+    <h1 class="home-title">Xtronik</h1>
+    <p class="home-subtitle">MQTT Monitor & Publisher</p>
+
+    <div class="system-info" onclick="alert('System Fully Operational')">
+        System Status: <strong>Online</strong> | Uptime: <span id="uptime">00:00:00</span>
+    </div>
+
+    <div class="log-terminal" id="logTerminal">
+        <!-- Сюда летят строки -->
+    </div>
+
+    <div class="home-buttons">
+        <a href="Mqtt-monitor" class="home-button">Go to Monitor</a>
+        <a href="MqttSender" class="home-button">Go to Sender</a>
+    </div>
+</div>
+
+<script>
+    let uptimeSeconds = 0;
+
+    function updateUptime() {
+        uptimeSeconds++;
+        const hours = String(Math.floor(uptimeSeconds / 3600)).padStart(2, '0');
+        const minutes = String(Math.floor((uptimeSeconds % 3600) / 60)).padStart(2, '0');
+        const seconds = String(uptimeSeconds % 60).padStart(2, '0');
+        document.getElementById('uptime').innerText = `${hours}:${minutes}:${seconds}`;
+    }
+    setInterval(updateUptime, 1000);
+
+    const logTerminal = document.getElementById('logTerminal');
+
+    function addLogLine(text) {
+        const now = new Date().toLocaleTimeString();
+        const line = document.createElement('div');
+        line.innerText = `[${now}] ${text}`;
+        logTerminal.appendChild(line);
+
+        if (logTerminal.scrollHeight > logTerminal.clientHeight) {
+            logTerminal.scrollTop = logTerminal.scrollHeight;
+        }
+    }
+
+    function simulateLogFlow() {
+        const messages = [
+            "Connecting to MQTT broker...",
+            "MQTT connection established.",
+            "Subscribed to topic: sensors/temperature",
+            "Received: Temperature=23.5°C",
+            "Published command to actuators/pump: ON",
+            "System running stable...",
+            "Heartbeat sent to broker."
+        ];
+
+        setInterval(() => {
+            const message = messages[Math.floor(Math.random() * messages.length)];
+            addLogLine(message);
+        }, 3000);
+    }
+
+    simulateLogFlow();
+</script>

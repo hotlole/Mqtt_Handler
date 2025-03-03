@@ -2,11 +2,156 @@
 @using BlazorApp2.Service
 @inject MqttService MqttService
 
+<style>
+    .mqtt-sender-container {
+        min-height: 100vh;
+        background: radial-gradient(circle at top left, #6C4CFF, #4C6FF2, #232323);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .grid-overlay {
+        position: absolute;
+        inset: 0;
+        background-image: linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(to right, rgba(255,255,255,0.08) 1px, transparent 1px);
+        background-size: 50px 50px;
+        opacity: 0.3;
+        pointer-events: none;
+    }
+
+    .mqtt-sender-card {
+        background: rgba(0, 0, 0, 0.85);
+        color: #B3BFFF;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 2rem;
+        width: 90%;
+        max-width: 600px;
+        backdrop-filter: blur(15px);
+        box-shadow: 0 0 25px rgba(108, 76, 255, 0.5);
+        animation: fadeInZoom 0.8s ease-out;
+        z-index: 10;
+        font-family: 'Consolas', monospace;
+        border-radius: 12px;
+    }
+
+    .mqtt-sender-title {
+        font-size: 2rem;
+        text-transform: uppercase;
+        color: #ffffff;
+        text-shadow: 0 0 25px rgba(108, 76, 255, 1);
+        margin-bottom: 1.5rem;
+        text-align: center;
+        animation: glowPulse 3s infinite alternate;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-label {
+        font-size: 0.9rem;
+        color: #AAB4FF;
+        margin-bottom: 0.25rem;
+        display: block;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: #ffffff;
+        font-family: 'Courier New', monospace;
+        font-size: 1rem;
+        outline: none;
+        transition: all 0.3s ease;
+    }
+
+        .form-input:focus {
+            box-shadow: 0 0 12px rgba(108, 76, 255, 0.8);
+            border-color: #6C4CFF;
+        }
+
+    .submit-button {
+        width: 100%;
+        padding: 0.75rem;
+        background: linear-gradient(135deg, #6C4CFF, #4C6FF2);
+        color: white;
+        border: none;
+        font-size: 1rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+        .submit-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 0 20px rgba(108, 76, 255, 0.6);
+        }
+
+        .submit-button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+
+    .status-message {
+        margin-top: 1rem;
+        padding: 0.75rem;
+        font-size: 0.9rem;
+        text-align: center;
+        border-radius: 8px;
+        animation: slideIn 0.3s ease-out;
+        font-family: 'Consolas', monospace;
+    }
+
+    @@keyframes fadeInZoom {
+        from {
+            opacity: 0;
+            transform: scale(0.9);
+        }
+
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    @@keyframes glowPulse {
+        from {
+            text-shadow: 0 0 10px rgba(108, 76, 255, 0.7);
+        }
+
+        to {
+            text-shadow: 0 0 30px rgba(108, 76, 255, 1);
+        }
+    }
+
+    @@keyframes slideIn {
+        from {
+            transform: translateY(-15px);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+</style>
+
 <div class="mqtt-sender-container">
+    <div class="grid-overlay"></div>
+
+    
+
     <div class="mqtt-sender-card">
         <h2 class="mqtt-sender-title">MQTT Sender</h2>
-
-        <EditForm Model="@this" OnValidSubmit="SendMessage" FormName="MqttSendForm">
+        <EditForm Model="@this" OnValidSubmit="SendMessage" FormName="MqttSenderForm">
             <div class="form-group">
                 <label class="form-label">Топик:</label>
                 <InputText @bind-Value="topic" class="form-input" placeholder="Введите топик" />
@@ -24,30 +169,27 @@
 
         @if (!string.IsNullOrEmpty(status))
         {
-            <div class="status-message" style="background-color: @(statusColor == "green" ? "#d4edda" : "#f8d7da"); color: @(statusColor == "green" ? "#155724" : "#721c24");">
+            <div class="status-message" style="background-color: @(statusColor == "green" ? "rgba(50, 255, 50, 0.1)" : "rgba(255, 50, 50, 0.1)"); color: @(statusColor == "green" ? "#A2FFA2" : "#FFA2A2"); border: 1px solid @(statusColor == "green" ? "#50FF50" : "#FF5050");">
                 @status
             </div>
         }
     </div>
 </div>
 
-
 @code {
-    private string topic { get; set; } = "123"; // Топик будет вводиться пользователем
-    private string message { get; set; } = "test"; // Сообщение будет вводиться пользователем
-    private string status { get; set; } = ""; // Статус отправки
-    private string statusColor { get; set; } = "black"; // Цвет статуса
-    private bool isSending { get; set; } = false; // Флаг для блокировки кнопки
+    private string topic { get; set; } = "123";
+    private string message { get; set; } = "test";
+    private string status { get; set; } = "";
+    private string statusColor { get; set; } = "black";
+    private bool isSending { get; set; } = false;
 
     private async Task SendMessage()
     {
-        if (isSending) return; // Предотвращаем многократные отправки
+        if (isSending) return;
         isSending = true;
 
-        // Отладочное сообщение
         Console.WriteLine($"Топик: '{topic}', Сообщение: '{message}'");
 
-        // Проверяем подключение перед отправкой сообщения
         if (!MqttService.IsConnected())
         {
             status = "❌ MQTT клиент не подключен!";
@@ -56,7 +198,6 @@
             return;
         }
 
-        // Проверяем, что топик и сообщение не пустые
         if (string.IsNullOrWhiteSpace(topic) || string.IsNullOrWhiteSpace(message))
         {
             status = "❌ Топик и сообщение не могут быть пустыми!";
@@ -69,16 +210,10 @@
         {
             bool success = await MqttService.PublishMessage(topic, message);
 
-            if (success)
-            {
-                status = $"✅ Отправлено в {topic}: {message}";
-                statusColor = "green";
-            }
-            else
-            {
-                status = "❌ Ошибка отправки сообщения!";
-                statusColor = "red";
-            }
+            status = success
+                ? $"✅ Отправлено в {topic}: {message}"
+                : "❌ Ошибка отправки!";
+            statusColor = success ? "green" : "red";
         }
         catch (Exception ex)
         {
@@ -87,7 +222,7 @@
         }
         finally
         {
-            isSending = false; // Разблокируем кнопку после завершения отправки
+            isSending = false;
         }
     }
 }

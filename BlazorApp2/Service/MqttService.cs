@@ -1,9 +1,10 @@
 ﻿using MQTTnet;
 using MQTTnet.Protocol;
 using Microsoft.Extensions.Logging;
-using System.Buffers;
 using System.Text;
 using System.Text.Json;
+using System.Buffers;
+using System.Globalization;
 
 namespace BlazorApp2.Service
 {
@@ -11,14 +12,16 @@ namespace BlazorApp2.Service
     {
         public string Name { get; set; } = "";
         public string Status { get; set; } = "offline";
+        public bool IsSelected { get; set; }
+        public string Id { get; } = Guid.NewGuid().ToString();
     }
 
     public class Expression
     {
-        public int Num1 { get; set; }
+        public double Num1 { get; set; } // Изменено на double
         public string Operator { get; set; } = "";
-        public int Num2 { get; set; }
-        public int Result { get; set; }
+        public double Num2 { get; set; } // Изменено на double
+        public double Result { get; set; } // Изменено на double
     }
 
     public class MqttService : IDisposable
@@ -26,20 +29,14 @@ namespace BlazorApp2.Service
         private readonly ILogger<MqttService> _logger;
         private IMqttClient _mqttClient;
         private bool _isConnected = false;
-        private bool _isDisposed = false; // Флаг для отслеживания состояния
+        private bool _isDisposed = false;
 
         public string Status { get; private set; } = "Отключено";
-
         public event Action OnMessageReceived;
 
-        public List<Device> Devices { get; private set; } = new()
-        {
-            new Device { Name = "ESP32-1", Status = "offline" },
-            new Device { Name = "ESP32-2", Status = "offline" },
-            new Device { Name = "ESP32-3", Status = "offline" }
-        };
-
-        public Expression Expression { get; private set; } = new();
+        public List<Device> Devices { get; private set; } = new();
+       
+        public Dictionary<string, Expression> DeviceExpressions { get; private set; } = new();
 
         public MqttService(ILogger<MqttService> logger)
         {
@@ -72,23 +69,21 @@ namespace BlazorApp2.Service
                 Status = "Отключено";
                 _logger.LogWarning("MQTT клиент отключен");
 
-                for (int i = 0; i < 5; i++) // 5 попыток переподключения
+                for (int i = 0; i < 5; i++)
                 {
                     try
                     {
-                        await Task.Delay(TimeSpan.FromSeconds(5)); // Подождать перед повторной попыткой
+                        await Task.Delay(TimeSpan.FromSeconds(5));
                         _logger.LogInformation($"Попытка переподключения {i + 1}...");
 
-                        // Если клиент был освобожден, создаем новый
                         if (_mqttClient == null || _isDisposed)
                         {
                             _logger.LogInformation("Создание нового MQTT клиента...");
                             _mqttClient = new MqttClientFactory().CreateMqttClient();
-                            await InitializeMqttClient(); // Повторная инициализация
-                            _isDisposed = false; // Сбрасываем флаг
+                            await InitializeMqttClient();
+                            _isDisposed = false;
                         }
 
-                        // Проверяем, что клиент не подключён
                         if (!_mqttClient.IsConnected)
                         {
                             await _mqttClient.ConnectAsync(options);
@@ -115,7 +110,6 @@ namespace BlazorApp2.Service
             {
                 _logger.LogInformation("Подключение к MQTT серверу...");
                 await _mqttClient.ConnectAsync(options);
-                _logger.LogInformation("Попытка подключения завершена");
             }
             catch (Exception ex)
             {
@@ -156,64 +150,103 @@ namespace BlazorApp2.Service
         private async Task SubscribeToTopics()
         {
             var subscribeOptions = new MqttClientSubscribeOptionsBuilder()
-                .WithTopicFilter(f => f.WithTopic("test/esp32/calculator/status/EC62609A4320").WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce))
-                .WithTopicFilter(f => f.WithTopic("test/esp32/calculator/EC62609A4320").WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce))
+                .WithTopicFilter(f => f.WithTopic("test/esp32/calculator/status/#").WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce))
+                .WithTopicFilter(f => f.WithTopic("test/esp32/calculator/#").WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce))
                 .Build();
 
             await _mqttClient.SubscribeAsync(subscribeOptions);
+            _logger.LogInformation("Подписка на топики выполнена");
         }
 
         public bool IsConnected() => _mqttClient != null && _mqttClient.IsConnected;
 
         private void ProcessMqttMessage(string topic, byte[] payload)
         {
-            var message = Encoding.UTF8.GetString(payload);
+            var message = Encoding.UTF8.GetString(payload).Trim();
             _logger.LogInformation($"MQTT сообщение получено: {topic} - {message}");
 
-            if (topic == "test/esp32/calculator/EC62609A4320")
+            if (topic.StartsWith("test/esp32/calculator/status/"))
             {
-                try
-                {
-                    // Пример данных: "EC62609A4320 = Offline, EC62609AE018 = Offline"
-                    var deviceStatusList = message.Split(',')
-                        .Select(part => part.Split('='))
-                        .Select(parts => new Device
-                        {
-                            Name = parts[0].Trim(),
-                            Status = parts[1].Trim()
-                        })
-                        .ToList();
+                var mac = topic.Substring("test/esp32/calculator/status/".Length);
+                var lowerMessage = message.Trim().ToLower();
 
-                    Devices = deviceStatusList;
-                    _logger.LogInformation("Обновлен список устройств");
-                }
-                catch (Exception ex)
+                string status = "";
+
+                if (lowerMessage.Contains("online"))
                 {
-                    Status = $"Ошибка обработки данных устройств: {ex.Message}";
-                    _logger.LogError($"Ошибка обработки данных устройств: {ex.Message}");
+                    status = "online";
                 }
+                else if (lowerMessage.Contains("offline"))
+                {
+                    status = "offline";
+                }
+                else
+                {
+                    _logger.LogWarning($"Неизвестный статус устройства: {message}");
+                    return;
+                }
+
+                var device = Devices.FirstOrDefault(d => d.Name == mac);
+                if (device != null)
+                {
+                    device.Status = status;
+                    _logger.LogInformation($"Обновлено устройство: {device.Name} -> {device.Status}");
+                }
+                else
+                {
+                    Devices.Add(new Device { Name = mac, Status = status });
+                    _logger.LogInformation($"Добавлено новое устройство: {mac} -> {status}");
+                }
+
+                OnMessageReceived?.Invoke();
             }
-            else if (topic == "test/esp32/calculator/EC62609A4320")
+            else if (topic.StartsWith("test/esp32/calculator/"))
             {
                 try
                 {
-                    // Пример данных: "Path: /calculate, Data: POST request received: num1=10, num2=23, operation=add, result=33.00"
-                    var parts = message.Split(new[] { "num1=", "num2=", "operation=", "result=" }, StringSplitOptions.RemoveEmptyEntries);
+                    var mac = topic.Substring("test/esp32/calculator/".Length).Split('/')[0];
 
-                    var num1 = int.Parse(parts[1].Split(',')[0]);
-                    var num2 = int.Parse(parts[2].Split(',')[0]);
-                    var operation = parts[3].Split(',')[0];
-                    var result = double.Parse(parts[4]);
-
-                    Expression = new Expression
+                    if (message.Contains("Data: POST request received:"))
                     {
-                        Num1 = num1,
-                        Num2 = num2,
-                        Operator = operation,
-                        Result = (int)result
-                    };
+                        var dataPart = message.Split(new[] { "Data: POST request received:" }, StringSplitOptions.RemoveEmptyEntries);
+                        if (dataPart.Length < 2)
+                        {
+                            _logger.LogWarning("Некорректный формат данных выражения");
+                            return;
+                        }
 
-                    _logger.LogInformation("Обновлены данные выражения");
+                        var data = dataPart[1].Trim();
+
+                        // Разбиваем строку на пары "ключ=значение"
+                        var pairs = data.Split(new[] { ", " }, StringSplitOptions.RemoveEmptyEntries);  // обратил внимание на пробел после запятой
+
+                        var dict = pairs.Select(p =>
+                        {
+                            var kv = p.Split('=');
+                            var key = kv[0].Trim();
+                            var value = kv[1].Trim().Replace(',', '.'); // точка для парсинга double
+                            return new KeyValuePair<string, string>(key, value);
+                        }).ToDictionary(x => x.Key, x => x.Value);
+
+                        var num1 = ParseDouble(dict["num1"]);
+                        var num2 = ParseDouble(dict["num2"]);
+                        var operation = dict["operation"];
+                        var result = ParseDouble(dict["result"]);
+
+                        var expression = new Expression
+                        {
+                            Num1 = num1,
+                            Num2 = num2,
+                            Operator = operation,
+                            Result = Math.Round(result, 2)
+                        };
+
+                        DeviceExpressions[mac] = expression;
+
+                        _logger.LogInformation($"Обновлено выражение для устройства {mac}");
+
+                        OnMessageReceived?.Invoke();
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -222,8 +255,22 @@ namespace BlazorApp2.Service
                 }
             }
 
-            OnMessageReceived?.Invoke();
+
+
+
         }
+
+        // Метод для безопасного парсинга чисел
+        private double ParseDouble(string input)
+        {
+            if (double.TryParse(input, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+            {
+                return value;
+            }
+            throw new FormatException($"Не удалось распарсить число: '{input}'");
+        }
+
+
 
 
         public void Dispose()

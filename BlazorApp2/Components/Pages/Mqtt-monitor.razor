@@ -2,82 +2,360 @@
 @using BlazorApp2.Service
 @inject MqttService Mqtt
 @implements IDisposable
+<style>
+.monitor-container {
+    min-height: 100vh;
+    background: radial-gradient(circle at top left, #6C4CFF, #4C6FF2, #232323);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    color: white;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    animation: fadeInZoom 1.5s ease-out;
+}
 
-<div class="min-h-screen bg-gradient-to-r from-blue-500 to-purple-600 p-6">
-    <h1 class="text-5xl font-bold mb-8 text-white drop-shadow-lg text-center animate-pulse">MQTT Monitor</h1>
+.grid-overlay {
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px),
+                      linear-gradient(to right, rgba(255,255,255,0.08) 1px, transparent 1px);
+    background-size: 50px 50px;
+    opacity: 0.4;
+    pointer-events: none;
+    animation: glitch 2s infinite;
+}
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-        <!-- Список устройств -->
-        <div class="bg-white/90 backdrop-blur-sm p-6 rounded-2xl shadow-2xl hover:shadow-3xl transition-shadow duration-300">
-            <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">ESP32 Devices</h2>
-            <ul class="space-y-2">
+.monitor-title {
+    font-size: 5rem;
+    text-transform: uppercase;
+    text-shadow: 0 0 30px rgba(255, 255, 255, 0.8);
+    animation: glowPulse 3s infinite alternate ease-in-out;
+    margin-bottom: 1rem;
+}
+
+.card-grid {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    width: 100%;
+    max-width: 1200px;
+    z-index: 2;
+}
+
+    .expression-item {
+        font-family: 'Roboto Mono', 'Consolas', 'Courier', monospace;
+        font-size: 1.4rem;
+        font-weight: bold;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.3);
+        padding: 8px 12px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 6px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        justify-content: flex-start;
+    }
+
+
+.monitor-card {
+    flex: 1;
+    min-width: 280px;
+    max-width: 500px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(12px);
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 0 25px rgba(108, 76, 255, 0.5);
+    color: white;
+    text-align: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.monitor-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 0 40px rgba(255, 255, 255, 0.7);
+}
+
+.device-list {
+    list-style: none;
+    padding: 0;
+    text-align: left;
+}
+
+.device-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.device-item:hover {
+    background: rgba(108, 76, 255, 0.3);
+    transform: translateX(5px);
+}
+
+.device-item.selected {
+    background-color: rgba(100, 149, 237, 0.2);
+    border-color: cornflowerblue;
+    font-weight: bold;
+    animation: popSelected 0.3s ease-out;
+}
+
+.device-status {
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.status-online {
+    color: #4cff4c;
+    animation: pulseGreen 1.5s infinite ease-in-out;
+}
+
+.status-offline {
+    color: #ff4c4c;
+    animation: pulseRed 1.5s infinite ease-in-out;
+}
+
+.selected-icon {
+        margin-left: 8px;
+        font-size: 1.2rem;
+        color: #4cff4c;
+ }
+
+    .selection-checkbox {
+        margin-left: 10px;
+        width: 18px;
+        height: 18px;
+        accent-color: #4cff4c;
+        cursor: pointer;
+    }
+
+    .expression-item {
+        font-family: 'Roboto Mono', 'Consolas', 'Courier', monospace;
+        font-size: 1.4rem;
+        font-weight: bold;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.3);
+        padding: 8px 12px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 6px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        justify-content: flex-start;
+    }
+/* .expression {
+    font-size: 2rem;
+    font-family: 'Courier New', monospace;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 1.5rem;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    box-shadow: 0 0 15px rgba(108, 76, 255, 0.6);
+} */
+
+.selected-device-card {
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    padding: 2rem;
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 0 25px rgba(108, 76, 255, 0.5);
+    margin-top: 2rem;
+    width: 100%;
+    max-width: 500px;
+    color: white;
+    animation: slideIn 0.7s ease-out;
+}
+
+.device-details {
+    font-size: 1.2rem;
+    margin-top: 1rem;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Keyframes */
+@@keyframes fadeInZoom {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@@keyframes glitch {
+    0%, 100% {
+        transform: skewX(-5deg) translateY(2px);
+    }
+    25%, 75% {
+        transform: skewX(5deg) translateY(-2px);
+    }
+    50% {
+        transform: skewX(-5deg) translateY(2px);
+    }
+}
+
+@@keyframes glowPulse {
+    from {
+        text-shadow: 0 0 20px rgba(255, 255, 255, 0.7);
+    }
+    to {
+        text-shadow: 0 0 40px rgba(108, 76, 255, 1);
+    }
+}
+
+@@keyframes pulseGreen {
+    0%, 100% {
+        text-shadow: 0 0 10px #4cff4c, 0 0 20px #4cff4c;
+    }
+    50% {
+        text-shadow: 0 0 15px #4cff4c, 0 0 25px #4cff4c;
+    }
+}
+
+@@keyframes pulseRed {
+    0%, 100% {
+        text-shadow: 0 0 10px #ff4c4c, 0 0 20px #ff4c4c;
+    }
+    50% {
+        text-shadow: 0 0 15px #ff4c4c, 0 0 25px #ff4c4c;
+    }
+}
+
+@@keyframes slideIn {
+    from {
+        transform: translateY(50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@@keyframes popSelected {
+    from {
+        transform: scale(0.95);
+        opacity: 0.5;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+</style>
+<div class="monitor-container">
+    <h1 class="monitor-title">MQTT Monitor</h1>
+
+    <div class="card-grid">
+        <div class="monitor-card">
+            <h2>ESP32 Devices</h2>
+            <ul class="device-list">
                 @foreach (var device in Mqtt.Devices)
                 {
-                    <li class="flex justify-between p-4 text-xl rounded-lg shadow-md cursor-pointer transition-all hover:scale-105"
-                        @onclick="() => SelectDevice(device)"
-                        style="background-color: @(selectedDevice == device ? "#BFDBFE" : "#F3F4F6");">
-                        <span class="font-medium">@device.Name</span>
-                        <span class="flex items-center text-2xl">
-                            @(device.Status == "online" ? "🟢 Online" : "🔴 Offline")
-                        </span>
+                    <li class="device-item">
+                        <div class="device-info">
+                            <span>@device.Name</span>
+                            <span class="device-status @(device.Status == "online" ? "status-online" : "status-offline")">
+                                @(device.Status == "online" ? "🟢 Online" : "🔴 Offline")
+                            </span>
+                        </div>
                     </li>
                 }
             </ul>
         </div>
 
-        <!-- Выражение -->
-        <div class="bg-white/90 backdrop-blur-sm p-6 rounded-2xl shadow-2xl hover:shadow-3xl transition-shadow duration-300 text-center">
-            <h2 class="text-3xl font-semibold mb-4 text-gray-700">Expression</h2>
-            <p class="text-6xl font-mono font-bold text-gray-900 bg-gray-200/50 p-6 rounded-lg shadow-md">
-                <span>@Mqtt.Expression.Num1</span>
-                <span class="text-blue-500">@Mqtt.Expression.Operator</span>
-                <span>@Mqtt.Expression.Num2</span>
-                <span>=</span>
-                <span class="text-green-600">@Mqtt.Expression.Result</span>
-            </p>
+        <div class="monitor-card">
+            <h2>Expressions</h2>
+            @if (Mqtt.DeviceExpressions.Count > 0)
+            {
+                <ul class="expression-list">
+                    @foreach (var kvp in Mqtt.DeviceExpressions)
+                    {
+                        <li class="expression-item">
+                            <strong>@kvp.Key:</strong>
+                            <span>@kvp.Value.Num1</span>
+                            <span>@kvp.Value.Operator</span>
+                            <span>@kvp.Value.Num2</span>
+                            <span>=</span>
+                            <span>@kvp.Value.Result</span>
+                        </li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <p>Пока нет выражений.</p>
+            }
         </div>
     </div>
-
-    <!-- Выбранное устройство -->
-    @if (selectedDevice is not null)
-    {
-        <div class="bg-white/90 backdrop-blur-sm p-6 rounded-2xl shadow-2xl hover:shadow-3xl transition-shadow duration-300 text-center mt-6">
-            <h2 class="text-3xl font-semibold mb-4 text-gray-700">Selected Device</h2>
-            <p class="text-2xl font-medium text-gray-800">Name: @selectedDevice.Name</p>
-            <p class="text-xl font-semibold @(selectedDevice.Status == "online" ? "text-green-600" : "text-red-600")">
-                Status: @(selectedDevice.Status == "online" ? "🟢 Online" : "🔴 Offline")
-            </p>
-        </div>
-    }
 </div>
 
 @code {
-    private Device? selectedDevice;
-    private bool _isDisposed = false; // Флаг для отслеживания состояния компонента
-
+    
     protected override async Task OnInitializedAsync()
     {
-        await Mqtt.InitializeMqttClient();
-        Mqtt.OnMessageReceived += OnMqttMessageReceived; // Подписываемся на событие
+        if (!Mqtt.IsConnected())
+        {
+            await Mqtt.InitializeMqttClient();
+        }
+
+        Mqtt.OnMessageReceived += OnMqttMessageReceived;
     }
 
     private void OnMqttMessageReceived()
     {
-        if (!_isDisposed) // Проверяем, что компонент не удалён
+        // Если выбранное устройство пропало, сбрасываем его
+        if (selectedDevice != null && !Mqtt.Devices.Any(d => d.Name == selectedDevice.Name))
         {
-            InvokeAsync(StateHasChanged); // Обновляем UI в потоке Blazor
+            selectedDevice = null;
         }
+
+        InvokeAsync(StateHasChanged);
     }
+
+    private Device? selectedDevice = null;
 
     private void SelectDevice(Device device)
     {
-        selectedDevice = device;
+        if (selectedDevice?.Name == device.Name)
+        {
+            selectedDevice = null; // Сняли выбор
+        }
+        else
+        {
+            selectedDevice = device; // Выбрали новое
+        }
+        StateHasChanged(); // Принудительное обновление компонента
+    }
+
+    private bool IsSelected(Device device)
+    {
+        return selectedDevice != null && selectedDevice.Name == device.Name;
     }
 
     public void Dispose()
     {
-        _isDisposed = true; // Устанавливаем флаг, что компонент удалён
-        Mqtt.OnMessageReceived -= OnMqttMessageReceived; // Отписываемся от события
-        Mqtt.Dispose();
+        Mqtt.OnMessageReceived -= OnMqttMessageReceived;
     }
 }
+

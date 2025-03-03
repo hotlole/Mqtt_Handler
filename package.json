@@ -16,10 +16,11 @@
     "url": "https://github.com/hotlole/Mqtt_Handler/issues"
   },
   "homepage": "https://github.com/hotlole/Mqtt_Handler#readme",
-  "description": "",
-  "dependencies": {
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.5.3",
-    "tailwindcss": "^4.0.9"
-  }
+  "devDependencies": {
+    "@tailwindcss/postcss7-compat": "^2.2.17",
+    "autoprefixer": "^9.8.8",
+    "postcss": "^7.0.39",
+    "tailwindcss": "npm:@tailwindcss/postcss7-compat@^2.2.17"
+  },
+  "description": ""
 }
