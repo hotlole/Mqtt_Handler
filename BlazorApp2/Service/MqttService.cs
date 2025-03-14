@@ -5,25 +5,10 @@ using System.Text;
 using System.Text.Json;
 using System.Buffers;
 using System.Globalization;
+using BlazorApp2.Models;
 
 namespace BlazorApp2.Service
 {
-    public class Device
-    {
-        public string Name { get; set; } = "";
-        public string Status { get; set; } = "offline";
-        public bool IsSelected { get; set; }
-        public string Id { get; } = Guid.NewGuid().ToString();
-    }
-
-    public class Expression
-    {
-        public double Num1 { get; set; } // Изменено на double
-        public string Operator { get; set; } = "";
-        public double Num2 { get; set; } // Изменено на double
-        public double Result { get; set; } // Изменено на double
-    }
-
     public class MqttService : IDisposable
     {
         private readonly ILogger<MqttService> _logger;
@@ -35,7 +20,7 @@ namespace BlazorApp2.Service
         public event Action OnMessageReceived;
 
         public List<Device> Devices { get; private set; } = new();
-       
+
         public Dictionary<string, Expression> DeviceExpressions { get; private set; } = new();
 
         public MqttService(ILogger<MqttService> logger)

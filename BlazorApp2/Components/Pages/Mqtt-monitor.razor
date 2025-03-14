@@ -1,51 +1,51 @@
 ﻿@page "/mqtt-monitor"
 @using BlazorApp2.Service
+@using BlazorApp2.Models
 @inject MqttService Mqtt
 @implements IDisposable
 <style>
-.monitor-container {
-    min-height: 100vh;
-    background: radial-gradient(circle at top left, #6C4CFF, #4C6FF2, #232323);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem;
-    color: white;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-    animation: fadeInZoom 1.5s ease-out;
-}
+    .monitor-container {
+        min-height: 100vh;
+        background: radial-gradient(circle at top left, #6C4CFF, #4C6FF2, #232323);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        color: white;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+        animation: fadeInZoom 1.5s ease-out;
+    }
 
-.grid-overlay {
-    position: absolute;
-    inset: 0;
-    background-image: linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px),
-                      linear-gradient(to right, rgba(255,255,255,0.08) 1px, transparent 1px);
-    background-size: 50px 50px;
-    opacity: 0.4;
-    pointer-events: none;
-    animation: glitch 2s infinite;
-}
+    .grid-overlay {
+        position: absolute;
+        inset: 0;
+        background-image: linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(to right, rgba(255,255,255,0.08) 1px, transparent 1px);
+        background-size: 50px 50px;
+        opacity: 0.4;
+        pointer-events: none;
+        animation: glitch 2s infinite;
+    }
 
-.monitor-title {
-    font-size: 5rem;
-    text-transform: uppercase;
-    text-shadow: 0 0 30px rgba(255, 255, 255, 0.8);
-    animation: glowPulse 3s infinite alternate ease-in-out;
-    margin-bottom: 1rem;
-}
+    .monitor-title {
+        font-size: 5rem;
+        text-transform: uppercase;
+        text-shadow: 0 0 30px rgba(255, 255, 255, 0.8);
+        animation: glowPulse 3s infinite alternate ease-in-out;
+        margin-bottom: 1rem;
+    }
 
-.card-grid {
-    display: flex;
-    gap: 2rem;
-    justify-content: center;
-    flex-wrap: wrap;
-    width: 100%;
-    max-width: 1200px;
-    z-index: 2;
-}
+    .card-grid {
+        display: flex;
+        gap: 2rem;
+        justify-content: center;
+        flex-wrap: wrap;
+        width: 100%;
+        max-width: 1200px;
+        z-index: 2;
+    }
 
     .expression-item {
         font-family: 'Roboto Mono', 'Consolas', 'Courier', monospace;
@@ -63,77 +63,77 @@
     }
 
 
-.monitor-card {
-    flex: 1;
-    min-width: 280px;
-    max-width: 500px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    backdrop-filter: blur(12px);
-    padding: 2rem;
-    border-radius: 12px;
-    box-shadow: 0 0 25px rgba(108, 76, 255, 0.5);
-    color: white;
-    text-align: center;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
+    .monitor-card {
+        flex: 1;
+        min-width: 280px;
+        max-width: 500px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        backdrop-filter: blur(12px);
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 0 25px rgba(108, 76, 255, 0.5);
+        color: white;
+        text-align: center;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
 
-.monitor-card:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 0 40px rgba(255, 255, 255, 0.7);
-}
+        .monitor-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 0 40px rgba(255, 255, 255, 0.7);
+        }
 
-.device-list {
-    list-style: none;
-    padding: 0;
-    text-align: left;
-}
+    .device-list {
+        list-style: none;
+        padding: 0;
+        text-align: left;
+    }
 
-.device-item {
-    padding: 8px 12px;
-    cursor: pointer;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 8px;
-    margin-bottom: 0.75rem;
-    transition: background 0.3s ease, transform 0.2s ease;
-}
+    .device-item {
+        padding: 8px 12px;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 8px;
+        margin-bottom: 0.75rem;
+        transition: background 0.3s ease, transform 0.2s ease;
+    }
 
-.device-item:hover {
-    background: rgba(108, 76, 255, 0.3);
-    transform: translateX(5px);
-}
+        .device-item:hover {
+            background: rgba(108, 76, 255, 0.3);
+            transform: translateX(5px);
+        }
 
-.device-item.selected {
-    background-color: rgba(100, 149, 237, 0.2);
-    border-color: cornflowerblue;
-    font-weight: bold;
-    animation: popSelected 0.3s ease-out;
-}
+        .device-item.selected {
+            background-color: rgba(100, 149, 237, 0.2);
+            border-color: cornflowerblue;
+            font-weight: bold;
+            animation: popSelected 0.3s ease-out;
+        }
 
-.device-status {
-    font-weight: bold;
-    text-transform: uppercase;
-}
+    .device-status {
+        font-weight: bold;
+        text-transform: uppercase;
+    }
 
-.status-online {
-    color: #4cff4c;
-    animation: pulseGreen 1.5s infinite ease-in-out;
-}
+    .status-online {
+        color: #4cff4c;
+        animation: pulseGreen 1.5s infinite ease-in-out;
+    }
 
-.status-offline {
-    color: #ff4c4c;
-    animation: pulseRed 1.5s infinite ease-in-out;
-}
+    .status-offline {
+        color: #ff4c4c;
+        animation: pulseRed 1.5s infinite ease-in-out;
+    }
 
-.selected-icon {
+    .selected-icon {
         margin-left: 8px;
         font-size: 1.2rem;
         color: #4cff4c;
- }
+    }
 
     .selection-checkbox {
         margin-left: 10px;
@@ -157,111 +157,119 @@
         align-items: center;
         justify-content: flex-start;
     }
-/* .expression {
-    font-size: 2rem;
-    font-family: 'Courier New', monospace;
-    background: rgba(0, 0, 0, 0.6);
-    padding: 1.5rem;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    border-radius: 8px;
-    box-shadow: 0 0 15px rgba(108, 76, 255, 0.6);
-} */
+    /* .expression {
+        font-size: 2rem;
+        font-family: 'Courier New', monospace;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 1.5rem;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 8px;
+        box-shadow: 0 0 15px rgba(108, 76, 255, 0.6);
+    } */
 
-.selected-device-card {
-    background: rgba(255, 255, 255, 0.1);
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    padding: 2rem;
-    border-radius: 12px;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 0 25px rgba(108, 76, 255, 0.5);
-    margin-top: 2rem;
-    width: 100%;
-    max-width: 500px;
-    color: white;
-    animation: slideIn 0.7s ease-out;
-}
+    .selected-device-card {
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        padding: 2rem;
+        border-radius: 12px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 0 25px rgba(108, 76, 255, 0.5);
+        margin-top: 2rem;
+        width: 100%;
+        max-width: 500px;
+        color: white;
+        animation: slideIn 0.7s ease-out;
+    }
 
-.device-details {
-    font-size: 1.2rem;
-    margin-top: 1rem;
-    background: rgba(0, 0, 0, 0.5);
-    padding: 1rem;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-}
+    .device-details {
+        font-size: 1.2rem;
+        margin-top: 1rem;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 1rem;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
 
-/* Keyframes */
-@@keyframes fadeInZoom {
-    from {
-        opacity: 0;
-        transform: scale(0.9);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
+    /* Keyframes */
+    @@keyframes fadeInZoom {
+        from {
+            opacity: 0;
+            transform: scale(0.9);
+        }
 
-@@keyframes glitch {
-    0%, 100% {
-        transform: skewX(-5deg) translateY(2px);
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
     }
-    25%, 75% {
-        transform: skewX(5deg) translateY(-2px);
-    }
-    50% {
-        transform: skewX(-5deg) translateY(2px);
-    }
-}
 
-@@keyframes glowPulse {
-    from {
-        text-shadow: 0 0 20px rgba(255, 255, 255, 0.7);
-    }
-    to {
-        text-shadow: 0 0 40px rgba(108, 76, 255, 1);
-    }
-}
+    @@keyframes glitch {
+        0%, 100% {
+            transform: skewX(-5deg) translateY(2px);
+        }
 
-@@keyframes pulseGreen {
-    0%, 100% {
-        text-shadow: 0 0 10px #4cff4c, 0 0 20px #4cff4c;
-    }
-    50% {
-        text-shadow: 0 0 15px #4cff4c, 0 0 25px #4cff4c;
-    }
-}
+        25%, 75% {
+            transform: skewX(5deg) translateY(-2px);
+        }
 
-@@keyframes pulseRed {
-    0%, 100% {
-        text-shadow: 0 0 10px #ff4c4c, 0 0 20px #ff4c4c;
+        50% {
+            transform: skewX(-5deg) translateY(2px);
+        }
     }
-    50% {
-        text-shadow: 0 0 15px #ff4c4c, 0 0 25px #ff4c4c;
-    }
-}
 
-@@keyframes slideIn {
-    from {
-        transform: translateY(50px);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
-}
+    @@keyframes glowPulse {
+        from {
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.7);
+        }
 
-@@keyframes popSelected {
-    from {
-        transform: scale(0.95);
-        opacity: 0.5;
+        to {
+            text-shadow: 0 0 40px rgba(108, 76, 255, 1);
+        }
     }
-    to {
-        transform: scale(1);
-        opacity: 1;
+
+    @@keyframes pulseGreen {
+        0%, 100% {
+            text-shadow: 0 0 10px #4cff4c, 0 0 20px #4cff4c;
+        }
+
+        50% {
+            text-shadow: 0 0 15px #4cff4c, 0 0 25px #4cff4c;
+        }
     }
-}
+
+    @@keyframes pulseRed {
+        0%, 100% {
+            text-shadow: 0 0 10px #ff4c4c, 0 0 20px #ff4c4c;
+        }
+
+        50% {
+            text-shadow: 0 0 15px #ff4c4c, 0 0 25px #ff4c4c;
+        }
+    }
+
+    @@keyframes slideIn {
+        from {
+            transform: translateY(50px);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    @@keyframes popSelected {
+        from {
+            transform: scale(0.95);
+            opacity: 0.5;
+        }
+
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
 </style>
 <div class="monitor-container">
     <h1 class="monitor-title">MQTT Monitor</h1>
@@ -311,7 +319,7 @@
 </div>
 
 @code {
-    
+
     protected override async Task OnInitializedAsync()
     {
         if (!Mqtt.IsConnected())
@@ -358,4 +366,3 @@
         Mqtt.OnMessageReceived -= OnMqttMessageReceived;
     }
 }
-
